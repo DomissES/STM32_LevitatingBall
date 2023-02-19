@@ -1,0 +1,6 @@
+../Mine/Src/circ_buff.c:17:20:f_cb_is_full	16	static
+../Mine/Src/circ_buff.c:22:20:f_cb_is_empty	16	static
+../Mine/Src/circ_buff.c:28:9:f_cb_check_size	24	static,ignoring_inline_asm
+../Mine/Src/circ_buff.c:40:6:f_cb_enqueue	16	static,ignoring_inline_asm
+../Mine/Src/circ_buff.c:51:7:f_cb_dequeue	24	static,ignoring_inline_asm
+../Mine/Src/circ_buff.c:64:6:f_cb_try_enqueue	24	static

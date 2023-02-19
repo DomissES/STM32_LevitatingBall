@@ -1,0 +1,9 @@
+../Mine/Src/lcd_service.c:20:20:f_SendFrameBufferPage	16	static
+../Mine/Src/lcd_service.c:29:6:f_lcd_Init	16	static
+../Mine/Src/lcd_service.c:47:6:f_lcd_Clear	24	static
+../Mine/Src/lcd_service.c:59:6:f_lcd_ClearAll	16	static
+../Mine/Src/lcd_service.c:64:6:f_lcd_WriteTxt	48	static
+../Mine/Src/lcd_service.c:81:6:f_lcd_DrawRaw	32	static
+../Mine/Src/lcd_service.c:144:6:f_lcd_DrawImage	32	static
+../Mine/Src/lcd_service.c:149:6:f_lcd_SetPixel	16	static
+../Mine/Src/lcd_service.c:158:6:f_lcd_SendFrameCallback	8	static
