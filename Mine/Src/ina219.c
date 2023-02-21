@@ -79,10 +79,10 @@ void f_ina219_Init()
 	//set the config register
 	// bus voltage range = 32v
 	// gain divide = 2
-	// bus mode/average = 12bit/ 16
-	// shunt mode/average = 12bit/ 16
+	// bus mode/average = 12bit/
+	// shunt mode/average = 12bit/ 128
 	//mode = bus and shunt, continuous
-	uint16_t config = (1 << 13) | (1 << 11) | (12 << 7) | (12 << 3) | (7 << 0);
+	uint16_t config = (1 << 13) | (1 << 11) | (15 << 7) | (15 << 3) | (7 << 0);
 
 	f_ina219_reset();
 	HAL_Delay(1);

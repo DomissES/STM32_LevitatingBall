@@ -30,6 +30,7 @@
 #include "lcd_service.h"
 
 #include "sh1106_hw.h"
+#include "work.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -54,6 +55,7 @@ int16_t current;
 int16_t shunt;
 uint16_t bus;
 uint16_t power;
+uint8_t motorVel = 20;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -61,7 +63,25 @@ void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
+void f_write_data()
+{
+	char txt[20];
 
+	f_lcd_ClearAll();
+
+	sprintf(txt, "Vel: %2d", motorVel);
+	f_lcd_WriteTxt(0, 0, txt, &test2);
+
+	bus = f_ina219_GetBusVoltageInMilis()/100;
+	power = f_ina219_GetPowerInMilis()/10;
+
+	sprintf(txt, "Bus: %2d.%1d", bus/10, bus%10);
+	f_lcd_WriteTxt(0, 16, txt, &test2);
+
+	sprintf(txt, "Pow: %2d.%2d", power/100, power%100);
+	f_lcd_WriteTxt(0, 32, txt, &test2);
+
+}
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
@@ -97,17 +117,21 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_TIM3_Init();
-  MX_TIM9_Init();
   MX_TIM10_Init();
   /* USER CODE BEGIN 2 */
 
-
-   char txt[20];
-
-   bool dir = false;
+   f_work_motor_InitTimer();
 
    f_ina219_Init();
    f_lcd_Init();
+
+   f_work_motorSetVelocity(motorVel);
+   f_work_motorSet(1);
+
+   f_write_data();
+
+   uint32_t timerLCD;
+   uint32_t timerCTRL;
 
   /* USER CODE END 2 */
 
@@ -118,26 +142,23 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	 f_lcd_ClearAll();
 
 
-	 current = f_ina219_GetCurrentInMilis();
-	 sprintf(txt, "Curr:  %4d", current);
-	 f_lcd_WriteTxt(0, 0, txt, &test2);
+	  if((HAL_GetTick() - timerCTRL) >= 30)
+	  {
+		  motorVel = (motorVel + 1) % 100;
+		  f_work_motorSetVelocity(motorVel);
 
-	 shunt = f_ina219_GetShuntVoltageInMicro();
-	 sprintf(txt, "Shunt: %4d", shunt);
-	 f_lcd_WriteTxt(0, 16, txt, &test2);
+		  timerCTRL = HAL_GetTick();
+	  }
 
-	 bus = f_ina219_GetBusVoltageInMilis();
-	 sprintf(txt, "Bus:   %4d", bus);
-	 f_lcd_WriteTxt(0, 32, txt, &test2);
+	 if((HAL_GetTick() - timerLCD) >= 80)
+	 {
+		 f_write_data();
 
-	 power = f_ina219_GetPowerInMilis();
-	 sprintf(txt, "Pow:   %4d", power);
-	 f_lcd_WriteTxt(0, 48, txt, &test2);
+		 timerLCD = HAL_GetTick();
+	 }
 
-	 HAL_Delay(100);
 
   }
   /* USER CODE END 3 */
