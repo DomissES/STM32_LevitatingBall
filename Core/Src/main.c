@@ -55,7 +55,7 @@ int16_t current;
 int16_t shunt;
 uint16_t bus;
 uint16_t power;
-uint8_t motorVel = 20;
+uint16_t distance;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -63,25 +63,7 @@ void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
-void f_write_data()
-{
-	char txt[20];
 
-	f_lcd_ClearAll();
-
-	sprintf(txt, "Vel: %2d", motorVel);
-	f_lcd_WriteTxt(0, 0, txt, &test2);
-
-	bus = f_ina219_GetBusVoltageInMilis()/100;
-	power = f_ina219_GetPowerInMilis()/10;
-
-	sprintf(txt, "Bus: %2d.%1d", bus/10, bus%10);
-	f_lcd_WriteTxt(0, 16, txt, &test2);
-
-	sprintf(txt, "Pow: %2d.%2d", power/100, power%100);
-	f_lcd_WriteTxt(0, 32, txt, &test2);
-
-}
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
@@ -117,22 +99,19 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_TIM3_Init();
-  MX_TIM10_Init();
   /* USER CODE BEGIN 2 */
 
-   f_work_motor_InitTimer();
-
+   f_work_motorInitTimer();
+   f_work_sensorInitTimer();
    f_ina219_Init();
    f_lcd_Init();
 
-   f_work_motorSetVelocity(motorVel);
-   f_work_motorSet(1);
-
-   f_write_data();
+   char txt[20];
 
    uint32_t timerLCD;
    uint32_t timerCTRL;
 
+   f_work_motorSet(1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -144,21 +123,29 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
 
-	  if((HAL_GetTick() - timerCTRL) >= 30)
+	  if((HAL_GetTick() - timerCTRL) >= 100)
 	  {
-		  motorVel = (motorVel + 1) % 100;
-		  f_work_motorSetVelocity(motorVel);
+		  distance = f_work_sensorGetLastMeasure();
+		  f_work_sensorTriggerMeasure();
+
+		  if(distance) f_work_motorSetVelocity(distance/10);
 
 		  timerCTRL = HAL_GetTick();
 	  }
 
 	 if((HAL_GetTick() - timerLCD) >= 80)
 	 {
-		 f_write_data();
+		 f_lcd_ClearAll();
 
+		 power = f_ina219_GetPowerInMilis()/100;
+
+		 sprintf(txt, "Dis: %3d.%1d cm", distance/10, distance%10);
+		 f_lcd_WriteTxt(0, 0, txt, &test2);
+
+		 sprintf(txt, "Pow: %2d.%1d W", power/10, power%10);
+		 f_lcd_WriteTxt(0, 16, txt, &test2);
 		 timerLCD = HAL_GetTick();
 	 }
-
 
   }
   /* USER CODE END 3 */

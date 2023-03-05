@@ -20,9 +20,13 @@
 #define MOTOR_RESISTANCE_DEV	5
 
 
-void f_work_motor_InitTimer();
+void f_work_motorInitTimer();
 void f_work_motorSet(bool onOff);
 void f_work_motorSetVelocity(uint8_t velocity);
 bool f_work_motorTest();
+
+void f_work_sensorInitTimer();
+void f_work_sensorTriggerMeasure();
+uint16_t f_work_sensorGetLastMeasure();
 
 #endif /* INC_WORK_H_ */

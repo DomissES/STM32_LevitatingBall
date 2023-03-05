@@ -108,8 +108,8 @@ void Error_Handler(void);
 #define OTG_FS_OverCurrent_GPIO_Port GPIOD
 #define SWO_Pin GPIO_PIN_3
 #define SWO_GPIO_Port GPIOB
-#define SENSOR_IC_Pin GPIO_PIN_8
-#define SENSOR_IC_GPIO_Port GPIOB
+#define SENSOR_TRIG_Pin GPIO_PIN_9
+#define SENSOR_TRIG_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
