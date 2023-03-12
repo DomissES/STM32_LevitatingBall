@@ -332,4 +332,4 @@ VP_TIM10_VS_ClockSourceINT.Mode=Enable_Timer
 VP_TIM10_VS_ClockSourceINT.Signal=TIM10_VS_ClockSourceINT
 board=STM32F407G-DISC1
 boardIOC=true
-isbadioc=true
+isbadioc=false

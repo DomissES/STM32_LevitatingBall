@@ -29,4 +29,5 @@ void f_work_sensorInitTimer();
 void f_work_sensorTriggerMeasure();
 uint16_t f_work_sensorGetLastMeasure();
 
+
 #endif /* INC_WORK_H_ */

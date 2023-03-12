@@ -35,7 +35,8 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  D:/Projekty/Nauka_STM/PingPong/Mine/Inc/ina219.h \
  D:/Projekty/Nauka_STM/PingPong/Mine/Inc/lcd_service.h \
  D:/Projekty/Nauka_STM/PingPong/Mine/Inc/sh1106_hw.h \
- D:/Projekty/Nauka_STM/PingPong/Mine/Inc/work.h
+ D:/Projekty/Nauka_STM/PingPong/Mine/Inc/work.h \
+ D:/Projekty/Nauka_STM/PingPong/Mine/Inc/pid.h
 ../Core/Inc/main.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
 ../Core/Inc/stm32f4xx_hal_conf.h:
@@ -76,3 +77,4 @@ D:/Projekty/Nauka_STM/PingPong/Mine/Inc/ina219.h:
 D:/Projekty/Nauka_STM/PingPong/Mine/Inc/lcd_service.h:
 D:/Projekty/Nauka_STM/PingPong/Mine/Inc/sh1106_hw.h:
 D:/Projekty/Nauka_STM/PingPong/Mine/Inc/work.h:
+D:/Projekty/Nauka_STM/PingPong/Mine/Inc/pid.h:

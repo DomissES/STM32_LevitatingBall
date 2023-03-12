@@ -9,13 +9,13 @@
 #include "tim.h"
 #include "ina219.h"
 
-#define SENSOR_MAX_DELAY	12000
+#define SENSOR_MAX_DISTANCE	2200
 #define SENSOR_CORRECTION	5
 #define SOUND_VELOCITY		343
 
 uint8_t motorVelocityOCR;
 uint16_t sensorTimeElapsed;
-bool sensorMeasureOk;
+bool sensorMeasureDone;
 
 enum {SENSOR_OFF, SENSOR_TRIGGER, SENSOR_MEASURE, SENSOR_READ} sensorStatus;
 
@@ -114,6 +114,7 @@ static void f_work_sensorTimerModeIC()
 	{
 		Error_Handler();
 	}
+	__HAL_TIM_CLEAR_IT(&htim10, TIM_IT_UPDATE);
 }
 
 static void f_work_sensorTimerModeOC()
@@ -133,6 +134,7 @@ static void f_work_sensorTimerModeOC()
 	{
 		Error_Handler();
 	}
+	__HAL_TIM_CLEAR_IT(&htim10, TIM_IT_UPDATE);
 }
 
 void f_work_sensorInitTimer()
@@ -141,17 +143,14 @@ void f_work_sensorInitTimer()
 	htim10.Instance = TIM10;
 	htim10.Init.Prescaler = 167;
 	htim10.Init.CounterMode = TIM_COUNTERMODE_UP;
-	htim10.Init.Period = 65535;
+	htim10.Init.Period = 30000;
 	htim10.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	htim10.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
 	if (HAL_TIM_Base_Init(&htim10) != HAL_OK)
 	{
 		Error_Handler();
 	}
-	if (HAL_TIM_IC_Init(&htim10) != HAL_OK)
-	{
-		Error_Handler();
-	}
+	__HAL_TIM_URS_ENABLE(&htim10);
 }
 
 void f_work_sensorTriggerMeasure()
@@ -163,15 +162,26 @@ void f_work_sensorTriggerMeasure()
 		HAL_GPIO_WritePin(SENSOR_TRIG_GPIO_Port, SENSOR_TRIG_Pin, GPIO_PIN_SET);
 		HAL_TIM_OC_Start_IT(&htim10, TIM_CHANNEL_1);
 
+		__HAL_TIM_ENABLE_IT(&htim10, TIM_IT_UPDATE);
+
 		sensorStatus = SENSOR_TRIGGER;
+		sensorMeasureDone = false;
 	}
 }
 
-uint16_t f_work_sensorGetLastMeasure() //in mm
+uint16_t f_work_sensorGetLastMeasure() //return value in mm
 {
-	uint16_t distance = (uint32_t)((sensorTimeElapsed + SENSOR_CORRECTION) * SOUND_VELOCITY)/2000;
-	if(sensorMeasureOk) return distance;
-	else return 0;
+	bool isMeasureOk = false;
+	uint16_t distance;
+
+	if(sensorMeasureDone)
+	{
+		distance = (uint32_t)((sensorTimeElapsed + SENSOR_CORRECTION) * SOUND_VELOCITY)/2000;
+		if(distance <= SENSOR_MAX_DISTANCE) isMeasureOk = true;
+	}
+
+	return isMeasureOk ? distance : 0;
+
 }
 
 void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
@@ -190,8 +200,6 @@ void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
 	}
 }
 
-//TODO:: write what if it didnt get any reading
-
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
 	if(htim->Instance == TIM10)
@@ -206,11 +214,20 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 		{
 			sensorTimeElapsed = __HAL_TIM_GET_COMPARE(&htim10, TIM_CHANNEL_1);
 
-			if(sensorTimeElapsed <= SENSOR_MAX_DELAY) sensorMeasureOk = true;
-			else sensorMeasureOk = false;
-
+			sensorMeasureDone = true;
 			HAL_TIM_IC_Stop_IT(&htim10, TIM_CHANNEL_1);
 			sensorStatus = SENSOR_OFF;
 		}
+
+	}
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) //timeout for distance sensor
+{
+	if(htim->Instance == TIM10)
+	{
+		HAL_TIM_IC_Stop_IT(&htim10, TIM_CHANNEL_1);
+		sensorStatus = SENSOR_OFF;
+		sensorMeasureDone = false;
 	}
 }

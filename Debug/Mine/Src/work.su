@@ -3,9 +3,10 @@
 ../Mine/Src/work.c:58:6:f_work_motorSetVelocity	16	static
 ../Mine/Src/work.c:66:6:f_work_motorTest	24	static
 ../Mine/Src/work.c:100:13:f_work_sensorTimerModeIC	24	static
-../Mine/Src/work.c:119:13:f_work_sensorTimerModeOC	40	static
-../Mine/Src/work.c:138:6:f_work_sensorInitTimer	8	static
-../Mine/Src/work.c:157:6:f_work_sensorTriggerMeasure	8	static
-../Mine/Src/work.c:170:10:f_work_sensorGetLastMeasure	16	static
-../Mine/Src/work.c:177:6:HAL_TIM_OC_DelayElapsedCallback	16	static
-../Mine/Src/work.c:193:6:HAL_TIM_IC_CaptureCallback	16	static
+../Mine/Src/work.c:120:13:f_work_sensorTimerModeOC	40	static
+../Mine/Src/work.c:140:6:f_work_sensorInitTimer	8	static
+../Mine/Src/work.c:156:6:f_work_sensorTriggerMeasure	8	static
+../Mine/Src/work.c:172:10:f_work_sensorGetLastMeasure	16	static
+../Mine/Src/work.c:187:6:HAL_TIM_OC_DelayElapsedCallback	16	static
+../Mine/Src/work.c:203:6:HAL_TIM_IC_CaptureCallback	16	static
+../Mine/Src/work.c:225:6:HAL_TIM_PeriodElapsedCallback	16	static

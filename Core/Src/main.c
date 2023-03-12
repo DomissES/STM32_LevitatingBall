@@ -31,6 +31,7 @@
 
 #include "sh1106_hw.h"
 #include "work.h"
+#include "pid.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -56,6 +57,14 @@ int16_t shunt;
 uint16_t bus;
 uint16_t power;
 uint16_t distance;
+
+t_pid_Control PidCtrl;
+t_pid_Parameter Param = {
+		10, 1, 2, -900, 900, -4000,4000
+};
+
+int32_t throttle;
+int16_t pwm;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -110,6 +119,7 @@ int main(void)
 
    uint32_t timerLCD;
    uint32_t timerCTRL;
+   uint32_t timerPID;
 
    f_work_motorSet(1);
   /* USER CODE END 2 */
@@ -128,7 +138,7 @@ int main(void)
 		  distance = f_work_sensorGetLastMeasure();
 		  f_work_sensorTriggerMeasure();
 
-		  if(distance) f_work_motorSetVelocity(distance/10);
+		  //if(distance) f_work_motorSetVelocity(distance/10);
 
 		  timerCTRL = HAL_GetTick();
 	  }
@@ -144,7 +154,23 @@ int main(void)
 
 		 sprintf(txt, "Pow: %2d.%1d W", power/10, power%10);
 		 f_lcd_WriteTxt(0, 16, txt, &test2);
+
+		 sprintf(txt, "P:%2d I:%2d D:%2d", PidCtrl.pValue/100, PidCtrl.iValue/100, PidCtrl.dValue/100);
+		 f_lcd_WriteTxt(0, 32, txt, &test2);
+
+
 		 timerLCD = HAL_GetTick();
+	 }
+
+	 if((HAL_GetTick() - timerPID) >= 80)
+	 {
+		 f_pid_CalculateThrottle(distance/3, f_ina219_GetPowerInMilis()/100, &PidCtrl, &Param);
+		 pwm += (PidCtrl.output / 200);
+		 if(pwm <= 0) pwm = 0;
+		 else if(pwm >= 100) pwm = 100;
+		 f_work_motorSetVelocity(pwm);
+
+		 timerPID = HAL_GetTick();
 	 }
 
   }
