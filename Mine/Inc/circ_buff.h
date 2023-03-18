@@ -12,18 +12,22 @@
 #include <stdint.h>
 
 #define ENQUEUE_TRIES 3
-#define MAX_BUFFER_SIZE 16
+#define BUFFER_SIZE 16
 
 typedef volatile struct
 {
-	uint8_t head;
-	uint8_t tail;
-	void *elements[MAX_BUFFER_SIZE];
-}t_circ_buffer;
+	void *buffAddress;
+	uint16_t length;
+	uint16_t head;
+	uint16_t tail;
 
-uint8_t f_cb_check_size(t_circ_buffer *cb);
-bool f_cb_enqueue(t_circ_buffer *cb, void *element);
-void *f_cb_dequeue(t_circ_buffer *cb);
-bool f_cb_try_enqueue(t_circ_buffer *cb, void *element);
+}t_cb_circBuffer;
+
+// buffer should be two dimensional: [buffer size][data size of one element]
+
+uint16_t f_cb_checkSize(t_cb_circBuffer *cb);
+bool f_cb_enqueue(t_cb_circBuffer *cb, const void *element, uint16_t size);
+void *f_cb_dequeue(t_cb_circBuffer *cb, void *element,  uint16_t size);
+bool f_cb_tryEnqueue(t_cb_circBuffer *cb, const void *element, uint16_t size);
 
 #endif /* INC_CIRC_BUFF_H_ */

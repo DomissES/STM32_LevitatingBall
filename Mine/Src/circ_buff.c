@@ -9,66 +9,67 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 #include <stm32f4xx_hal.h>
 
 #include "circ_buff.h"
 
 
-static inline bool f_cb_is_full(t_circ_buffer *cb)
+static inline bool f_cb_isFull(t_cb_circBuffer *cb)
 {
-	return (cb->head == ((cb->tail + 1) % MAX_BUFFER_SIZE));
+	return (cb->head == ((cb->tail + 1) % cb->length));
 }
 
-static inline bool f_cb_is_empty(t_circ_buffer *cb)
+static inline bool f_cb_isEmpty(t_cb_circBuffer *cb)
 {
 	return (cb->head == cb->tail);
 }
 
 
-uint8_t f_cb_check_size(t_circ_buffer *cb)
+uint16_t f_cb_checkSize(t_cb_circBuffer *cb)
 {
-	uint8_t size;
+	uint16_t size;
 
 	__disable_irq();
 	if(cb->tail >= cb->head) size = cb->tail - cb->head + 1;
-	else size = MAX_BUFFER_SIZE - cb->head - cb->tail;
+	else size = cb->length - cb->head - cb->tail;
 	__enable_irq();
 
 	return size;
 }
 
-bool f_cb_enqueue(t_circ_buffer *cb, void *element)
+bool f_cb_enqueue(t_cb_circBuffer *cb, const void *element, uint16_t size)
 {
+	if (f_cb_isFull(cb)) return false;
+
 	__disable_irq();
-	if (f_cb_is_full(cb)) return false;
-	cb->elements[cb->tail] = element;
-	cb->tail = (cb->tail+1) % MAX_BUFFER_SIZE;
+	memcpy(cb->buffAddress + cb->tail * size, element, size);
+	cb->tail = (cb->tail + 1) % cb->length;
 	__enable_irq();
 
 	return true;
 }
 
-void *f_cb_dequeue(t_circ_buffer *cb)
+void *f_cb_dequeue(t_cb_circBuffer *cb, void *element, uint16_t size)
 {
-	void *element;
+	if(f_cb_isEmpty(cb)) return NULL;
 
 	__disable_irq();
-	if(f_cb_is_empty(cb)) return NULL;
-	element = cb->elements[cb->head];
-	cb->head = (cb->head+1) % MAX_BUFFER_SIZE;
+	memcpy(element, cb->buffAddress + cb->head * size, size);
+	cb->head = (cb->head + 1) % cb->length;
 	__enable_irq();
 
 	return element;
 }
 
-bool f_cb_try_enqueue(t_circ_buffer *cb, void *element)
+bool f_cb_tryEnqueue(t_cb_circBuffer *cb, const void *element, uint16_t size)
 {
 	bool isOk;
 	uint8_t tries = 0;
 
 	for(tries = 0; tries < ENQUEUE_TRIES; tries++)
 	{
-		isOk = f_cb_enqueue(cb, element);
+		isOk = f_cb_enqueue(cb, element, size);
 		if(isOk) break;
 		HAL_Delay(5);
 	}
