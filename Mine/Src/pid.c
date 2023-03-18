@@ -8,9 +8,9 @@
 
 #include "pid.h"
 
-t_pid_Control* f_pid_CalculateThrottle(int32_t setPoint, int32_t input, t_pid_Control* Ctrl, t_pid_Parameter* Param)
+t_pid_Control* f_pid_calculateThrottle(float setPoint, float input, t_pid_Control* Ctrl, t_pid_Parameter* Param)
 {
-	int32_t error;
+	float error;
 
 	error = setPoint - input;
 

@@ -8,31 +8,34 @@
 #ifndef INC_PID_H_
 #define INC_PID_H_
 
+// NOTE:
+// float variables are approx 1% slower than fix variables, (261 cycles vs 240 cycles with two function calls)
+
 #include "main.h"
 
 typedef struct
 {
-	uint16_t Kp;
-	uint16_t Ki;
-	uint16_t Kd;
-	int32_t I_minRange;
-	int32_t I_maxRange;
-	int32_t minRange;
-	int32_t maxRange;
+	float Kp;
+	float Ki;
+	float Kd;
+	float I_minRange;
+	float I_maxRange;
+	float minRange;
+	float maxRange;
 }t_pid_Parameter;
 
 typedef struct
 {
-	int32_t integral;
-	int32_t lastError;
-	int32_t lastInput;
-	int32_t output;
-	int32_t pValue;
-	int32_t iValue;
-	int32_t dValue;
+	float integral;
+	float lastError;
+	float lastInput;
+	float output;
+	float pValue;
+	float iValue;
+	float dValue;
 }t_pid_Control;
 
-t_pid_Control* f_pid_CalculateThrottle(int32_t setPoint, int32_t input, t_pid_Control* Ctrl, t_pid_Parameter* Param);
+t_pid_Control* f_pid_calculateThrottle(float setPoint, float input, t_pid_Control* Ctrl, t_pid_Parameter* Param);
 
 
 #endif /* INC_PID_H_ */

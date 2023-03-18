@@ -11,8 +11,10 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdfix.h>
 #include <string.h>
 #include <stm32f4xx_hal.h>
+#include <math.h>
 
 uint8_t sh1106_FrameBuffer[SH1106_HEIGHT/8][SH1106_WIDTH];
 uint8_t sh1106_pageDirtyMask;
@@ -150,8 +152,36 @@ void f_lcd_SetPixel(uint8_t x, uint8_t y, bool set)
 {
 	if(set) sh1106_FrameBuffer[y/8][x] |= (1 << (y&0x07));
 	else sh1106_FrameBuffer[y/8][x] &= ~(1 << (y&0x07));
+}
 
-	sh1106_pageDirtyMask |= (1 << (y/8));
+void f_lcd_DrawLine(uint8_t xStart, uint8_t yStart, uint8_t xEnd, uint8_t yEnd)
+{
+	float delx, dely, length;
+	float x, y;
+
+	delx = abs(xEnd - xStart);
+	dely = abs(yEnd - yStart);
+
+	if(delx < dely) length = dely;
+	else length = delx;
+
+	delx = (xEnd - xStart) / length;
+	dely = (yEnd - yStart) / length;
+
+	x = xStart + 0.5;
+	y = yStart + 0.5;
+
+	for(uint8_t i = 0; i <= length; i ++)
+	{
+		f_lcd_SetPixel((uint8_t)x, (uint8_t)y, 1);
+
+		x += delx;
+		y += dely;
+	}
+
+	for(uint8_t i = yStart/8; i <= yEnd/8; i++) sh1106_pageDirtyMask |= (1 << i);
+
+	//check out for bresenham algorithm to optimize for bigger screens
 }
 
 

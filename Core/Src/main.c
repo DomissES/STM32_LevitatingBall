@@ -32,6 +32,8 @@
 #include "sh1106_hw.h"
 #include "work.h"
 #include "pid.h"
+#include "gui.h"
+#include "circ_buff.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -41,6 +43,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define f_dwt_startMeasure()		DWT->CYCCNT = 0
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -57,6 +60,7 @@ int16_t shunt;
 uint16_t bus;
 uint16_t power;
 uint16_t distance;
+uint32_t dwtCycles;
 
 t_pid_Control PidCtrl;
 t_pid_Parameter Param = {
@@ -65,6 +69,8 @@ t_pid_Parameter Param = {
 
 int32_t throttle;
 int16_t pwm;
+
+uint8_t chartData[120];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -75,6 +81,44 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+uint8_t f_dwt_counterEnable()
+{
+	uint32_t cycle;
+
+	CoreDebug->DEMCR &= ~(1<<24);
+	CoreDebug->DEMCR |= (1<<24);
+
+	DWT->CTRL &= ~(1<<0);
+	DWT->CTRL |= (1<<0);
+
+	DWT->CYCCNT = 0;
+
+	cycle = DWT->CYCCNT;
+
+	__ASM volatile ("NOP");
+	__ASM volatile ("NOP");
+	__ASM volatile ("NOP");
+
+	if((DWT->CYCCNT - cycle) == 0) return 0;
+
+	return (DWT->CYCCNT - cycle);
+}
+
+static inline void f_dwt_addSample()
+{
+	static uint32_t cycleAccum;
+	static uint8_t dwtSamples;
+
+	cycleAccum += DWT->CYCCNT;
+	dwtSamples++;
+
+	if(dwtSamples == 32)
+	{
+		dwtCycles = cycleAccum / 32;
+		cycleAccum = 0;
+		dwtSamples = 0;
+	}
+}
 
 /* USER CODE END 0 */
 
@@ -121,8 +165,14 @@ int main(void)
    uint32_t timerCTRL;
    uint32_t timerPID;
 
+   uint8_t iterator = 0;
+   uint8_t totalLength = 0;
+
+
+   f_gui_drawChart(chartData, 0, 0);
    f_work_motorSet(1);
-  /* USER CODE END 2 */
+   f_dwt_counterEnable();
+   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -132,46 +182,44 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-
+//TODO:: first sample of lcd is the current
 	  if((HAL_GetTick() - timerCTRL) >= 100)
 	  {
 		  distance = f_work_sensorGetLastMeasure();
 		  f_work_sensorTriggerMeasure();
+		  power = f_ina219_GetPowerInMilis()/100;
 
+
+		  f_pid_calculateThrottle(150, power, &PidCtrl, &Param);
+
+		  pwm += PidCtrl.output/200;
+		  if(pwm > 100) pwm = 100;
+		  else if(pwm < 0) pwm = 0;
+
+		  chartData[++iterator%120] = pwm / 3;
+
+		  if(totalLength < 120)
+		  {
+			  f_gui_drawChart(chartData, totalLength, 0);
+			  totalLength++;
+		  }
+		  else
+		  {
+			  f_dwt_startMeasure();
+			  f_gui_drawChart(chartData, 120, iterator);
+			  f_dwt_addSample();
+		  }
 		  //if(distance) f_work_motorSetVelocity(distance/10);
+
+		  f_work_motorSetVelocity(pwm);
+
+		  sprintf(txt, "Pow: %2d.%2d", power/10, power%10);
+		  f_lcd_WriteTxt(0, 0, txt, &test2);
 
 		  timerCTRL = HAL_GetTick();
 	  }
 
-	 if((HAL_GetTick() - timerLCD) >= 80)
-	 {
-		 f_lcd_ClearAll();
 
-		 power = f_ina219_GetPowerInMilis()/100;
-
-		 sprintf(txt, "Dis: %3d.%1d cm", distance/10, distance%10);
-		 f_lcd_WriteTxt(0, 0, txt, &test2);
-
-		 sprintf(txt, "Pow: %2d.%1d W", power/10, power%10);
-		 f_lcd_WriteTxt(0, 16, txt, &test2);
-
-		 sprintf(txt, "P:%2d I:%2d D:%2d", PidCtrl.pValue/100, PidCtrl.iValue/100, PidCtrl.dValue/100);
-		 f_lcd_WriteTxt(0, 32, txt, &test2);
-
-
-		 timerLCD = HAL_GetTick();
-	 }
-
-	 if((HAL_GetTick() - timerPID) >= 80)
-	 {
-		 f_pid_CalculateThrottle(distance/3, f_ina219_GetPowerInMilis()/100, &PidCtrl, &Param);
-		 pwm += (PidCtrl.output / 200);
-		 if(pwm <= 0) pwm = 0;
-		 else if(pwm >= 100) pwm = 100;
-		 f_work_motorSetVelocity(pwm);
-
-		 timerPID = HAL_GetTick();
-	 }
 
   }
   /* USER CODE END 3 */
