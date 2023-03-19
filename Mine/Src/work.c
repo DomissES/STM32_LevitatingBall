@@ -26,9 +26,9 @@ void f_work_motorInitTimer()
 	TIM_OC_InitTypeDef sConfigOC = {0};
 
 	htim9.Instance = TIM9;
-	htim9.Init.Prescaler = 167;
+	htim9.Init.Prescaler = 4;
 	htim9.Init.CounterMode = TIM_COUNTERMODE_UP;
-	htim9.Init.Period = 100;
+	htim9.Init.Period = MAX_MOTOR_PWM;
 	htim9.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	htim9.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
 	if (HAL_TIM_PWM_Init(&htim9) != HAL_OK)
@@ -55,9 +55,9 @@ void f_work_motorSet(bool onOff)
 	else HAL_TIM_PWM_Stop(&htim9, TIM_CHANNEL_1);
 }
 
-void f_work_motorSetVelocity(uint8_t velocity)
+void f_work_motorSetVelocity(uint16_t velocity)
 {
-	if(velocity >= 100) velocity = 100;
+	if(velocity >= MAX_MOTOR_PWM) velocity = MAX_MOTOR_PWM;
 	motorVelocityOCR = velocity;
 
 	__HAL_TIM_SET_COMPARE(&htim9, TIM_CHANNEL_1, velocity);
