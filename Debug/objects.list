@@ -29,7 +29,7 @@
 "./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim.o"
 "./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex.o"
 "./Mine/Src/circ_buff.o"
-"./Mine/Src/font_ms_sans.o"
+"./Mine/Src/font_msSansSerif_14.o"
 "./Mine/Src/gui.o"
 "./Mine/Src/ina219.o"
 "./Mine/Src/lcd_service.o"

@@ -50,7 +50,7 @@ void f_lcd_Clear(uint8_t col_start, uint8_t col_end, uint8_t page)
 {
 	uint8_t blank = 0x00;
 
-	for(uint8_t i = col_start; i < col_end; i++)
+	for(uint8_t i = col_start; i <= col_end; i++)
 	{
 		sh1106_FrameBuffer[page][i] = blank;
 	}
@@ -71,12 +71,19 @@ void f_lcd_WriteTxt(uint8_t x, uint8_t y, const char* txt, const tFont *font)
 
 	while((ch = *txt++))
 	{
-		uint8_t fontWidth = font->chars[ch - 0x20].image->width;
-
-		f_lcd_DrawRaw(x, y, font->chars[ch - 0x20].image->data, fontWidth, fontHeight);
-
-		x += fontWidth;
-		if((SH1106_WIDTH - x) < fontWidth) break; //no line wrapping
+		if(ch != '\t')
+		{
+			uint8_t fontWidth = font->chars[ch - 0x20].image->width;
+			if((SH1106_WIDTH - x) < fontWidth) break; //no line wrapping
+			f_lcd_DrawRaw(x, y, font->chars[ch - 0x20].image->data, fontWidth, fontHeight);
+	
+			x += fontWidth;
+		}
+		else //tab
+		{
+			x = ((x/16) + 1) * 16;
+		}
+		
 	}
 }
 

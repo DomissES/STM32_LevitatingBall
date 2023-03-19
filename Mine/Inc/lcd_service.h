@@ -26,7 +26,7 @@ typedef struct {
      const tChar *chars;
      } tFont;
 
-extern const tFont test2;
+extern const tFont font_msSansSerif_14;
 
 
 void f_lcd_Init();
