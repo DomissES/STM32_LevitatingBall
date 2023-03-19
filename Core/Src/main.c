@@ -64,7 +64,7 @@ uint32_t dwtCycles;
 
 t_pid_Control PidCtrl;
 t_pid_Parameter Param = {
-		10, 1, 2, -900, 900, -4000,4000
+		0.25, 0.01, 0.005, -10, 30, -50, 50
 };
 
 int32_t throttle;
@@ -169,10 +169,10 @@ int main(void)
    uint8_t totalLength = 0;
 
 
-   f_gui_drawChart(chartData, 0, 0);
+   f_gui_DrawChart(chartData, 0, 0);
    f_work_motorSet(1);
    f_dwt_counterEnable();
-   /* USER CODE END 2 */
+  /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -182,8 +182,8 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-//TODO:: first sample of lcd is the current
-	  if((HAL_GetTick() - timerCTRL) >= 100)
+
+	  if((HAL_GetTick() - timerCTRL) >= 5)
 	  {
 		  distance = f_work_sensorGetLastMeasure();
 		  f_work_sensorTriggerMeasure();
@@ -192,29 +192,23 @@ int main(void)
 
 		  f_pid_calculateThrottle(150, power, &PidCtrl, &Param);
 
-		  pwm += PidCtrl.output/200;
-		  if(pwm > 100) pwm = 100;
+		  pwm += PidCtrl.output;
+		  if(pwm > MAX_MOTOR_PWM) pwm = MAX_MOTOR_PWM;
 		  else if(pwm < 0) pwm = 0;
 
-		  chartData[++iterator%120] = pwm / 3;
+		  chartData[iterator] = pwm / 3;
+		  iterator = (iterator + 1) % 120;
 
-		  if(totalLength < 120)
-		  {
-			  f_gui_drawChart(chartData, totalLength, 0);
-			  totalLength++;
-		  }
-		  else
-		  {
-			  f_dwt_startMeasure();
-			  f_gui_drawChart(chartData, 120, iterator);
-			  f_dwt_addSample();
-		  }
+		  f_dwt_startMeasure();
+		  f_gui_DrawCtrlPage(15.0, power/10, PidCtrl.output);
+		  f_dwt_addSample();
+
 		  //if(distance) f_work_motorSetVelocity(distance/10);
 
 		  f_work_motorSetVelocity(pwm);
 
 		  sprintf(txt, "Pow: %2d.%2d", power/10, power%10);
-		  f_lcd_WriteTxt(0, 0, txt, &test2);
+		  f_lcd_WriteTxt(0, 0, txt, &font_msSansSerif_14);
 
 		  timerCTRL = HAL_GetTick();
 	  }
