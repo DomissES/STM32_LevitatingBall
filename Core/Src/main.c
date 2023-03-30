@@ -38,6 +38,15 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+typedef e_sm_State (*f_sm_Handler)(void);
+
+typedef struct
+{
+	e_sm_State srcState;
+	e_sm_Event event;
+	e_sm_State dstState;
+}t_sm_Transition;
+
 
 /* USER CODE END PTD */
 
@@ -54,71 +63,48 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-const t_smStateMachine ProgramStates[] = {};
-int16_t current;
-int16_t shunt;
-uint16_t bus;
-uint16_t power;
-uint16_t distance;
-uint32_t dwtCycles;
+bool eventFlag;
 
 t_pid_Control PidCtrl;
-t_pid_Parameter Param = {
-		0.25, 0.01, 0.005, -10, 30, -50, 50
+t_pid_Parameter PidParam;
+
+uint32_t dwtCycles;
+
+e_sm_State f_sm_Error();
+e_sm_State f_sm_Init();
+e_sm_State f_sm_Idle();
+e_sm_State f_sm_Work();
+e_sm_State f_sm_Exit();
+
+static const t_sm_Transition SM_Transition[] =
+{
+		{ST_ERROR, EV_ERROR, ST_ERROR},
+		{ST_ERROR, EV_NO_EVENT, ST_ERROR},
+		{ST_ERROR, EV_BUTTON_A, ST_ERROR},
+		{ST_ERROR, EV_BUTTON_B, ST_ERROR},
+		{ST_INIT, EV_ERROR, ST_ERROR},
+		{ST_INIT, EV_NO_EVENT, ST_IDLE}
 };
 
-int32_t throttle;
-int16_t pwm;
+t_sm_Transition SM;
 
-uint8_t chartData[120];
+static const f_sm_Handler StateHandler[] = {f_sm_Error, f_sm_Init, f_sm_Idle, f_sm_Work, f_sm_Exit};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
+uint8_t f_dwt_counterEnable();
+static inline void f_dwt_addSample();
+
+
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-uint8_t f_dwt_counterEnable()
-{
-	uint32_t cycle;
 
-	CoreDebug->DEMCR &= ~(1<<24);
-	CoreDebug->DEMCR |= (1<<24);
 
-	DWT->CTRL &= ~(1<<0);
-	DWT->CTRL |= (1<<0);
-
-	DWT->CYCCNT = 0;
-
-	cycle = DWT->CYCCNT;
-
-	__ASM volatile ("NOP");
-	__ASM volatile ("NOP");
-	__ASM volatile ("NOP");
-
-	if((DWT->CYCCNT - cycle) == 0) return 0;
-
-	return (DWT->CYCCNT - cycle);
-}
-
-static inline void f_dwt_addSample()
-{
-	static uint32_t cycleAccum;
-	static uint8_t dwtSamples;
-
-	cycleAccum += DWT->CYCCNT;
-	dwtSamples++;
-
-	if(dwtSamples == 32)
-	{
-		dwtCycles = cycleAccum / 32;
-		cycleAccum = 0;
-		dwtSamples = 0;
-	}
-}
 
 /* USER CODE END 0 */
 
@@ -153,25 +139,7 @@ int main(void)
   MX_DMA_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-
-   f_work_motorInitTimer();
-   f_work_sensorInitTimer();
-   f_ina219_Init();
-   f_lcd_Init();
-
-   char txt[20];
-
-   uint32_t timerLCD;
-   uint32_t timerCTRL;
-   uint32_t timerPID;
-
-   uint8_t iterator = 0;
-   uint8_t totalLength = 0;
-
-
-   f_gui_DrawChart(chartData, 0, 0);
-   f_work_motorSet(1);
-   f_dwt_counterEnable();
+  SM.dstState = ST_INIT;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -182,35 +150,15 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-
-	  if((HAL_GetTick() - timerCTRL) >= 5)
+	  SM.srcState = SM.dstState;
+	  if(StateHandler[SM.srcState] != NULL)
 	  {
-		  distance = f_work_sensorGetLastMeasure();
-		  f_work_sensorTriggerMeasure();
-		  power = f_ina219_GetPowerInMilis()/100;
-
-
-		  f_pid_calculateThrottle(150, power, &PidCtrl, &Param);
-
-		  pwm += PidCtrl.output;
-		  if(pwm > MAX_MOTOR_PWM) pwm = MAX_MOTOR_PWM;
-		  else if(pwm < 0) pwm = 0;
-
-		  chartData[iterator] = pwm / 3;
-		  iterator = (iterator + 1) % 120;
-
-		  f_dwt_startMeasure();
-		  f_gui_DrawCtrlPage(15.0, power/10, PidCtrl.output);
-		  f_dwt_addSample();
-
-		  //if(distance) f_work_motorSetVelocity(distance/10);
-
-		  f_work_motorSetVelocity(pwm);
-
-		  sprintf(txt, "Pow: %2d.%2d", power/10, power%10);
-		  f_lcd_WriteTxt(0, 0, txt, &font_msSansSerif_14);
-
-		  timerCTRL = HAL_GetTick();
+		  SM.dstState = (StateHandler[SM.srcState])();
+	  }
+	  else
+	  {
+		  // Invalid code
+		  break;
 	  }
 
 
@@ -266,6 +214,156 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
+e_sm_State f_sm_Error()
+{
+	__disable_irq();
+	HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_SET);
+
+	while(1)
+		;
+
+	return ST_ERROR;
+}
+
+e_sm_State f_sm_Init()
+{
+	static const char *infoTxt[] =
+	{
+		"Init test",
+		"Test ok",
+		"Test failure"
+	};
+
+	uint8_t isOkCounter = 0;
+
+	f_lcd_Init();
+	f_work_MotorInitTimer();
+	f_work_SensorInitTimer();
+	f_ina219_Init();
+
+	f_lcd_ClearAll();
+	f_lcd_WriteTxt(0, 16, infoTxt[0], &font_msSansSerif_14);
+	HAL_Delay(500);
+
+	//check motor on idle
+	f_work_MotorSet(0);
+	isOkCounter += f_work_MotorTest(0);
+
+	//check motor on 50%
+	f_work_MotorSetVelocity(MAX_MOTOR_PWM/2);
+	f_work_MotorSet(1);
+	HAL_Delay(2000);
+	isOkCounter += f_work_MotorTest(1);
+	f_work_MotorSet(0);
+
+	//check is distance is not 0
+	f_work_sensorTriggerMeasure();
+	while(!sensorMeasureDone)
+		;
+	uint16_t distance = f_work_sensorGetLastMeasure();
+	if(distance > 0) isOkCounter++;
+
+	f_lcd_ClearAll();
+	if(isOkCounter == 3)
+	{
+		f_lcd_WriteTxt(0, 16, infoTxt[1], &font_msSansSerif_14);
+		return ST_IDLE;
+	}
+	else
+		{
+			f_lcd_WriteTxt(0, 16, infoTxt[2], &font_msSansSerif_14);
+			return ST_ERROR;
+		}
+}
+
+e_sm_State f_sm_Idle()
+{
+	static enum {PREPARE, SET_P, SET_I, SET_D, TEST} Substate;
+	static const char *infoTxt[] =
+	{
+		"Set PID values:",
+		"Set P value:"
+		"Set I value:",
+		"Set D value:",
+	};
+	char txt[20];
+
+	switch (Substate)
+	{
+		case PREPARE:
+			f_lcd_ClearAll();
+			f_lcd_WriteTxt(0, 16, infoTxt[0], &font_msSansSerif_14);
+
+			break;
+
+		case SET_P:
+			float lastVal;
+			f_lcd_WriteTxt(0, 32, infoTxt[1], &font_msSansSerif_14);
+
+			while(!eventFlag)
+			{
+				if(lastVal != PidParam.Kp)
+				{
+					sprintf(txt, "%.2f", PidParam.Kp);
+					f_lcd_Clear(0, 127, 4);
+					f_lcd_Clear(0, 127, 5);
+					f_lcd_WriteTxt(0, 32, txt, &font_msSansSerif_14);
+				}
+			}
+
+		default:
+			break;
+	}
+}
+
+e_sm_State f_sm_Work()
+{
+
+}
+
+e_sm_State f_sm_Exit()
+{
+
+}
+
+uint8_t f_dwt_counterEnable()
+{
+	uint32_t cycle;
+
+	CoreDebug->DEMCR &= ~(1<<24);
+	CoreDebug->DEMCR |= (1<<24);
+
+	DWT->CTRL &= ~(1<<0);
+	DWT->CTRL |= (1<<0);
+
+	DWT->CYCCNT = 0;
+
+	cycle = DWT->CYCCNT;
+
+	__ASM volatile ("NOP");
+	__ASM volatile ("NOP");
+	__ASM volatile ("NOP");
+
+	if((DWT->CYCCNT - cycle) == 0) return 0;
+
+	return (DWT->CYCCNT - cycle);
+}
+
+static inline void f_dwt_addSample()
+{
+	static uint32_t cycleAccum;
+	static uint8_t dwtSamples;
+
+	cycleAccum += DWT->CYCCNT;
+	dwtSamples++;
+
+	if(dwtSamples == 32)
+	{
+		dwtCycles = cycleAccum / 32;
+		cycleAccum = 0;
+		dwtSamples = 0;
+	}
+}
 /* USER CODE END 4 */
 
 /**

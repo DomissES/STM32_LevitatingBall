@@ -11,7 +11,7 @@
 #include <stdint.h>
 
 #include "pid.h"
-#include "state_machine.h"
+#include "main.h"
 
 typedef const struct
 {

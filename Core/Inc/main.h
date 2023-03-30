@@ -37,7 +37,22 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
+typedef enum
+{
+	ST_ERROR,
+	ST_INIT,
+	ST_IDLE,
+	ST_WORK,
+	ST_EXIT
+}e_sm_State;
 
+typedef enum
+{
+	EV_ERROR,
+	EV_NO_EVENT,
+	EV_BUTTON_A,
+	EV_BUTTON_B,
+}e_sm_Event;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/

@@ -26,7 +26,7 @@
 #define INA219_MODE_SHUNT_BUS_CONT	0x07
 
 
-void f_ina219_Init();
+bool f_ina219_Init();
 void f_ina219_reset();
 void f_ina219_Mode(uint8_t mode);
 int16_t f_ina219_GetCurrentInMilis();

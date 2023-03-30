@@ -72,10 +72,11 @@ static void f_ina219_calibrate()
 
 //============== public functions ==================
 
-void f_ina219_Init()
+bool f_ina219_Init()
 {
-	f_ina219_HwInit();
+	bool isOk = false;
 
+	f_ina219_HwInit();
 	//set the config register
 	// bus voltage range = 32v
 	// gain divide = 2
@@ -88,8 +89,13 @@ void f_ina219_Init()
 	HAL_Delay(1);
 	f_sendWord(INA219_CONFIG, config);
 
+	//check if sensor is connected
+	uint16_t checkConfig = f_receiveWord(INA219_CONFIG);
+	if(checkConfig == config) isOk = true;
+
 	f_ina219_calibrate();
 
+	return isOk;
 }
 
 void f_ina219_reset()

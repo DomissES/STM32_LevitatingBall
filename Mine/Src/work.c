@@ -13,7 +13,8 @@
 #define SENSOR_CORRECTION	5
 #define SOUND_VELOCITY		343
 
-uint8_t motorVelocityOCR;
+uint16_t motorIdlePower;
+uint16_t motorVelocityOCR;
 uint16_t sensorTimeElapsed;
 bool sensorMeasureDone;
 
@@ -21,7 +22,7 @@ enum {SENSOR_OFF, SENSOR_TRIGGER, SENSOR_MEASURE, SENSOR_READ} sensorStatus;
 
 // ====================== motor section ====================
 
-void f_work_motorInitTimer()
+void f_work_MotorInitTimer()
 {
 	TIM_OC_InitTypeDef sConfigOC = {0};
 
@@ -49,13 +50,13 @@ void f_work_motorInitTimer()
 
 }
 
-void f_work_motorSet(bool onOff)
+void f_work_MotorSet(bool onOff)
 {
 	if(onOff) HAL_TIM_PWM_Start(&htim9, TIM_CHANNEL_1);
 	else HAL_TIM_PWM_Stop(&htim9, TIM_CHANNEL_1);
 }
 
-void f_work_motorSetVelocity(uint16_t velocity)
+void f_work_MotorSetVelocity(uint16_t velocity)
 {
 	if(velocity >= MAX_MOTOR_PWM) velocity = MAX_MOTOR_PWM;
 	motorVelocityOCR = velocity;
@@ -63,30 +64,46 @@ void f_work_motorSetVelocity(uint16_t velocity)
 	__HAL_TIM_SET_COMPARE(&htim9, TIM_CHANNEL_1, velocity);
 }
 
-bool f_work_motorTest()
+bool f_work_MotorTest(bool workingMotor)
 {
 	bool isBusOk = false;
 	bool isPowerOk = false;
 
-	uint8_t busVoltageLow = MOTOR_BUS_VOLTAGE - MOTOR_BUS_VOLTAGE_DEV;
-	uint8_t busVoltageHigh = MOTOR_BUS_VOLTAGE + MOTOR_BUS_VOLTAGE_DEV;
-	uint16_t busVoltage = f_ina219_GetBusVoltageInMilis()/1000;
+	uint16_t busVoltageLow = 1000*(MOTOR_BUS_VOLTAGE - MOTOR_BUS_VOLTAGE_DEV);
+	uint16_t busVoltageHigh = 1000*(MOTOR_BUS_VOLTAGE + MOTOR_BUS_VOLTAGE_DEV);
+	uint16_t busVoltage = f_ina219_GetBusVoltageInMilis();
 
 	// is there bus voltage?
 	if((busVoltage >= busVoltageLow) && (busVoltage <= busVoltageHigh)) isBusOk = true;
 
-
 	// power draw is within the limit? Units: miliWatts
-	uint16_t motorResistance = 1000*(MOTOR_RESISTANCE_K1 * (MOTOR_BUS_VOLTAGE * motorVelocityOCR/100) + MOTOR_RESISTANCE_K2); //in miliOhms
-	uint16_t powerHigh = 1000000 * MOTOR_BUS_VOLTAGE * MOTOR_BUS_VOLTAGE / (motorResistance - 1000*MOTOR_RESISTANCE_DEV);
-	uint16_t powerLow = MOTOR_BUS_VOLTAGE * MOTOR_BUS_VOLTAGE / (motorResistance + 1000*MOTOR_RESISTANCE_DEV);
-	uint16_t power = f_ina219_GetPowerInMilis();
+	uint16_t powerUpperLimit;
+	uint16_t powerLowerLimit;
 
-	if((power >= powerLow) && (power <= powerHigh)) isPowerOk = true;
+	if(workingMotor)
+	{
+		uint32_t motorVoltage = busVoltage * motorVelocityOCR / MAX_MOTOR_PWM;
+		uint32_t expectedPower = MOTOR_EXP_POWER_K * motorVoltage * motorVoltage / 1000;
+		powerUpperLimit = expectedPower + 1000 * MOTOR_POWER_DEV - motorIdlePower;
+		powerLowerLimit = expectedPower - 1000 * MOTOR_POWER_DEV - motorIdlePower;
+	}
+	else
+	{
+		powerUpperLimit = MOTOR_MAX_IDLE_POWER * 1000;
+		powerLowerLimit = -MOTOR_MAX_IDLE_POWER * 1000;
+	}
+
+	uint16_t power = f_ina219_GetPowerInMilis();
+	if((power >= powerLowerLimit) && (power <= powerUpperLimit)) isPowerOk = true;
+
 
 	return isBusOk && isPowerOk;
 }
 
+void f_work_MotorSetIdlePower(uint16_t power)
+{
+	motorIdlePower = power;
+}
 
 // ========================== sensor section =========================
 /*
@@ -137,7 +154,7 @@ static void f_work_sensorTimerModeOC()
 	__HAL_TIM_CLEAR_IT(&htim10, TIM_IT_UPDATE);
 }
 
-void f_work_sensorInitTimer()
+void f_work_SensorInitTimer()
 {
 
 	htim10.Instance = TIM10;
