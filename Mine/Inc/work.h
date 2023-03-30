@@ -16,18 +16,20 @@
 #define MOTOR_BUS_VOLTAGE		15
 #define MOTOR_BUS_VOLTAGE_DEV	2
 
-// motor resistance calculated as R = K1*U + K2
-#define MOTOR_RESISTANCE_K1		(-0.81)
-#define MOTOR_RESISTANCE_K2		(31.85)
-#define MOTOR_RESISTANCE_DEV	5
+// motor expected power is f(x) = kx2
+#define MOTOR_EXP_POWER_K		(0.05)
+#define MOTOR_POWER_DEV			2
+#define MOTOR_MAX_IDLE_POWER		3.0
 
+extern bool sensorMeasureDone;
 
-void f_work_motorInitTimer();
-void f_work_motorSet(bool onOff);
-void f_work_motorSetVelocity(uint16_t velocity);
-bool f_work_motorTest();
+void f_work_MotorInitTimer();
+void f_work_MotorSet(bool onOff);
+void f_work_MotorSetVelocity(uint16_t velocity);
+bool f_work_MotorTest(bool workingMotor);
+void f_work_MotorSetIdlePower(uint16_t power);
 
-void f_work_sensorInitTimer();
+void f_work_SensorInitTimer();
 void f_work_sensorTriggerMeasure();
 uint16_t f_work_sensorGetLastMeasure();
 
