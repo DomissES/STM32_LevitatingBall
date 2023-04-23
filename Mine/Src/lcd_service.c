@@ -19,6 +19,7 @@
 uint8_t sh1106_FrameBuffer[SH1106_HEIGHT/8][SH1106_WIDTH];
 uint8_t sh1106_pageDirtyMask;
 
+
 static inline void f_SendFrameBufferPage(uint8_t page)
 {
 	f_sh1106_cmd_SetColumnAddress(0);
@@ -50,7 +51,7 @@ void f_lcd_Clear(uint8_t col_start, uint8_t col_end, uint8_t page)
 {
 	uint8_t blank = 0x00;
 
-	for(uint8_t i = col_start; i <= col_end; i++)
+	for(uint8_t i = col_start; i < col_end; i++)
 	{
 		sh1106_FrameBuffer[page][i] = blank;
 	}
@@ -67,7 +68,6 @@ void f_lcd_WriteTxt(uint8_t x, uint8_t y, const char* txt, const tFont *font)
 {
 	uint8_t fontHeight = font->chars->image->height;
 	uint8_t ch;
-
 
 	while((ch = *txt++))
 	{

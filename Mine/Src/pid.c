@@ -18,11 +18,12 @@ t_pid_Control* f_pid_calculateThrottle(float setPoint, float input, t_pid_Contro
 	Ctrl->pValue = error * Param->Kp;
 
 	//get i value (the fancy way)
-	Ctrl->integral += (error + Ctrl->lastError)/2;
+	Ctrl->integral += (error + Ctrl->lastError)/2 * Param->Ki;
 
+	Ctrl->iValue = Ctrl->integral;
 	if(Ctrl->integral < Param->I_minRange) Ctrl->integral = Param->I_minRange;
 	else if(Ctrl->integral > Param->I_maxRange) Ctrl->integral = Param->I_maxRange;
-	Ctrl->iValue = Ctrl->integral * Param->Ki;
+
 
 	//get d value but from input instead of error
 	Ctrl->dValue = Param->Kd*(input - Ctrl->lastInput);

@@ -16,7 +16,8 @@ static const char *StateTitle[] =
 	"Init",
 	"Idle",
 	"Work",
-	"Test"
+	"Test",
+	"Replay"
 };
 
 static const char *PageTitle[] = 
@@ -24,22 +25,25 @@ static const char *PageTitle[] =
 	"Error",
 	"Init",
 	"Input",
-	"PID Param",
-	"PID Ctrl",
-	"Chart"
+	"Param",
+	"Ctrl",
+	"Chart",
+	"---"
 };
 
 
 static inline void f_gui_ClearLowerLcdPart()
 {
-	for(uint8_t i = 2; i < 8; i++) f_lcd_Clear(0, 127, i);
+	for(uint8_t i = 2; i < 8; i++) f_lcd_Clear(0, 128, i);
 }
 
 
 //=============== PUBLIC FUNCTIONS ==========================
 
-void f_gui_DrawChart(uint8_t *data, uint8_t length, uint8_t shift)
+void f_gui_DrawChartPage(uint8_t *data, uint8_t length, uint8_t shift)
 {
+	//max length: 120 px
+	//max value: 44 px
 	if(length > 120) return;
 
 	f_gui_ClearLowerLcdPart();
@@ -75,9 +79,9 @@ void f_gui_DrawCtrlPage(float set, float input, float output)
 	char txt[32];
 	f_gui_ClearLowerLcdPart();
 
-	sprintf(txt, "Set:\t%.1f", set);
+	sprintf(txt, "Set:\t%.1f cm", set);
 	f_lcd_WriteTxt(0, 16, txt, &font_msSansSerif_14);
-	sprintf(txt, "In:\t\t%.1f", input);
+	sprintf(txt, "In:\t\t%.1f cm", input);
 	f_lcd_WriteTxt(0, 32, txt, &font_msSansSerif_14);
 	sprintf(txt, "Out:\t%.1f", output);
 	f_lcd_WriteTxt(0, 48, txt, &font_msSansSerif_14);
@@ -85,10 +89,11 @@ void f_gui_DrawCtrlPage(float set, float input, float output)
 
 void f_gui_DrawHeading(e_sm_State state, e_gui_lcdPage Page)
 {
-	char txt[32];
-	f_lcd_Clear(0, 127, 0);
-	f_lcd_Clear(0, 127, 1);
+	f_lcd_Clear(0, 128, 0);
+	f_lcd_Clear(0, 128, 1);
 	
-	f_lcd_WriteTxt(0, 0, *StateTitle[state], &font_msSansSerif_14);
-	f_lcd_WriteTxt(0, 64, *PageTitle[Page], &font_msSansSerif_14);
+	f_lcd_WriteTxt(0, 0, "St:", &font_msSansSerif_14);
+	f_lcd_WriteTxt(24, 0, StateTitle[state], &font_msSansSerif_14);
+	f_lcd_WriteTxt(64, 0, "Lcd:", &font_msSansSerif_14);
+	f_lcd_WriteTxt(96, 0, PageTitle[Page], &font_msSansSerif_14);
 }

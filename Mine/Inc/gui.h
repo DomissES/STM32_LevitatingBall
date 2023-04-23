@@ -20,7 +20,7 @@ typedef const struct
 	char txtC[16];
 } t_gui_ParamTitles;
 
-typedef enum {LCD_ERROR, LCD_INIT, LCD_INPUT, LCD_PARAM, LCD_CTRL, LCD_CHART} e_gui_lcdPage;
+typedef enum {LCD_ERROR, LCD_INIT, LCD_INPUT, LCD_PARAM, LCD_CTRL, LCD_CHART, LCD_NOPAGE} e_gui_lcdPage;
 
 void f_gui_DrawChartPage(uint8_t *data, uint8_t length, uint8_t shift);
 void f_gui_DrawParamPage(t_pid_Parameter *Param, t_pid_Control *Ctrl);

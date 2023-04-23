@@ -77,8 +77,8 @@ bool f_work_MotorTest(bool workingMotor)
 	if((busVoltage >= busVoltageLow) && (busVoltage <= busVoltageHigh)) isBusOk = true;
 
 	// power draw is within the limit? Units: miliWatts
-	uint16_t powerUpperLimit;
-	uint16_t powerLowerLimit;
+	int16_t powerUpperLimit;
+	int16_t powerLowerLimit;
 
 	if(workingMotor)
 	{
@@ -92,6 +92,7 @@ bool f_work_MotorTest(bool workingMotor)
 		powerUpperLimit = MOTOR_MAX_IDLE_POWER * 1000;
 		powerLowerLimit = -MOTOR_MAX_IDLE_POWER * 1000;
 	}
+
 
 	uint16_t power = f_ina219_GetPowerInMilis();
 	if((power >= powerLowerLimit) && (power <= powerUpperLimit)) isPowerOk = true;

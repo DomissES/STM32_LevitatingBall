@@ -17,9 +17,9 @@
 #define MOTOR_BUS_VOLTAGE_DEV	2
 
 // motor expected power is f(x) = kx2
-#define MOTOR_EXP_POWER_K		(0.05)
-#define MOTOR_POWER_DEV			2
-#define MOTOR_MAX_IDLE_POWER		3.0
+#define MOTOR_EXP_POWER_K		(0.09)
+#define MOTOR_POWER_DEV			4
+#define MOTOR_MAX_IDLE_POWER	3.0
 
 extern bool sensorMeasureDone;
 

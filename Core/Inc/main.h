@@ -43,6 +43,7 @@ typedef enum
 	ST_INIT,
 	ST_IDLE,
 	ST_WORK,
+	ST_REPLAY,
 	ST_EXIT
 }e_sm_State;
 
@@ -53,6 +54,13 @@ typedef enum
 	EV_BUTTON_A,
 	EV_BUTTON_B,
 }e_sm_Event;
+
+typedef enum
+{
+	RC_FAIL,
+	RC_REPEAT,
+	RC_PASS
+}e_sm_ReturnCode;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
@@ -69,7 +77,7 @@ typedef enum
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-
+void f_CheckButtonsCallback();
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
@@ -81,16 +89,14 @@ void Error_Handler(void);
 #define OTG_FS_PowerSwitchOn_GPIO_Port GPIOC
 #define B1_Pin GPIO_PIN_0
 #define B1_GPIO_Port GPIOA
-#define B_START_Pin GPIO_PIN_1
-#define B_START_GPIO_Port GPIOA
-#define B_VIEW_Pin GPIO_PIN_2
-#define B_VIEW_GPIO_Port GPIOA
+#define B_NEXT_Pin GPIO_PIN_1
+#define B_NEXT_GPIO_Port GPIOA
+#define B_NEXT_EXTI_IRQn EXTI1_IRQn
+#define B_PREV_Pin GPIO_PIN_2
+#define B_PREV_GPIO_Port GPIOA
+#define B_PREV_EXTI_IRQn EXTI2_IRQn
 #define B_ENC_Pin GPIO_PIN_3
 #define B_ENC_GPIO_Port GPIOA
-#define ENC_P_Pin GPIO_PIN_6
-#define ENC_P_GPIO_Port GPIOA
-#define ENC_M_Pin GPIO_PIN_7
-#define ENC_M_GPIO_Port GPIOA
 #define BOOT1_Pin GPIO_PIN_2
 #define BOOT1_GPIO_Port GPIOB
 #define LCD_RES_Pin GPIO_PIN_11
@@ -107,6 +113,10 @@ void Error_Handler(void);
 #define LD5_GPIO_Port GPIOD
 #define LD6_Pin GPIO_PIN_15
 #define LD6_GPIO_Port GPIOD
+#define ENC_P_Pin GPIO_PIN_6
+#define ENC_P_GPIO_Port GPIOC
+#define ENC_M_Pin GPIO_PIN_7
+#define ENC_M_GPIO_Port GPIOC
 #define VBUS_FS_Pin GPIO_PIN_9
 #define VBUS_FS_GPIO_Port GPIOA
 #define OTG_FS_ID_Pin GPIO_PIN_10
