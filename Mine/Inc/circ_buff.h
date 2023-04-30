@@ -16,18 +16,23 @@
 
 typedef volatile struct
 {
-	void *buffAddress;
+	// buffer should be two dimensional array: [buffer size][data size of one element]
+	void *pbuffAddress;
 	uint16_t length;
 	uint16_t head;
 	uint16_t tail;
 
 }t_cb_circBuffer;
 
-// buffer should be two dimensional: [buffer size][data size of one element]
 
 uint16_t f_cb_checkSize(t_cb_circBuffer *cb);
-bool f_cb_enqueue(t_cb_circBuffer *cb, const void *element, uint16_t size);
-void *f_cb_dequeue(t_cb_circBuffer *cb, void *element,  uint16_t size);
-bool f_cb_tryEnqueue(t_cb_circBuffer *cb, const void *element, uint16_t size);
+
+//return false if fails
+bool f_cb_enqueue(t_cb_circBuffer *cb, const void *pData, uint16_t size);
+
+void *f_cb_dequeue(t_cb_circBuffer *cb, void *pData,  uint16_t size);
+
+//tries to enqueue ENQUEUE_TRIES, after fail it return false
+bool f_cb_tryEnqueue(t_cb_circBuffer *cb, const void *pData, uint16_t size);
 
 #endif /* INC_CIRC_BUFF_H_ */

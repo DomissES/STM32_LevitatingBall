@@ -9,7 +9,7 @@
 #define INC_PID_H_
 
 // NOTE:
-// float variables are approx 1% slower than fix variables, (261 cycles vs 240 cycles with two function calls)
+// float variables are approx 1% slower than fix variables, (261 cycles vs 240 cycles with two function calls, measured by DWT clock)
 
 #include "main.h"
 

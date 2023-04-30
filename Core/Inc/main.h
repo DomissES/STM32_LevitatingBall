@@ -55,12 +55,16 @@ typedef enum
 	EV_BUTTON_B,
 }e_sm_Event;
 
+// no need for that, left for future optimizations;
 typedef enum
 {
 	RC_FAIL,
 	RC_REPEAT,
 	RC_PASS
 }e_sm_ReturnCode;
+
+extern bool encoderInputChanged;
+extern bool eventFlag;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/

@@ -13,6 +13,7 @@
 #include "i2c.h"
 #include "ina219.h"
 
+//refer to the datasheet
 #define INA219_CURRENT_LSB		(INA219_EXPECTED_MAX_CURRENT/32768)
 #define INA219_CALIB_VALUE		(0.04096/(INA219_CURRENT_LSB * INA219_SHUNT_RESISTANCE))
 
@@ -28,42 +29,45 @@
 uint16_t curr_reg = INA219_CALIB_VALUE;
 uint16_t curr_lsc = INA219_CURRENT_LSB * 1000000;
 
+I2C_HandleTypeDef *pI2Chandler; //local i2c handler
 
 static uint16_t f_receiveWord(uint8_t address)
 {
 	uint8_t receive[2];
 
-	HAL_I2C_Master_Transmit(&hi2c1, INA219_I2C_ADDRESS, &address, 1, 50);
-	HAL_I2C_Master_Receive(&hi2c1, INA219_I2C_ADDRESS, (uint8_t*)&receive, 2, 50);
+	HAL_I2C_Master_Transmit(pI2Chandler, INA219_I2C_ADDRESS, &address, 1, 50);
+	HAL_I2C_Master_Receive(pI2Chandler, INA219_I2C_ADDRESS, (uint8_t*)&receive, 2, 50);
 
 	return (receive[0] << 8) | receive[1];
 }
 
-static inline void f_sendWord(uint8_t address, uint16_t word)
+static void f_sendWord(uint8_t address, uint16_t word)
 {
 	uint8_t transmit[3] = {address, word >> 8, word & 0xFF};
 
-	HAL_I2C_Master_Transmit(&hi2c1, INA219_I2C_ADDRESS, (uint8_t*)&transmit, 3, 50);
+	HAL_I2C_Master_Transmit(pI2Chandler, INA219_I2C_ADDRESS, (uint8_t*)&transmit, 3, 50);
 }
 
-static void f_ina219_HwInit()
+static inline void f_ina219_HwInit(I2C_HandleTypeDef *pHandler, I2C_TypeDef *pI2Caddress)
 {
-	 hi2c1.Instance = I2C1;
-	 hi2c1.Init.ClockSpeed = 100000;
-	 hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
-	 hi2c1.Init.OwnAddress1 = 0;
-	 hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-	 hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-	 hi2c1.Init.OwnAddress2 = 0;
-	 hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-	 hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-	 if (HAL_I2C_Init(&hi2c1) != HAL_OK)
-	 {
+	pI2Chandler = pHandler; //assign local i2c handler
+
+	pHandler->Instance = pI2Caddress;
+	pHandler->Init.ClockSpeed = 100000;
+	pHandler->Init.DutyCycle = I2C_DUTYCYCLE_2;
+	pHandler->Init.OwnAddress1 = 0;
+	pHandler->Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+	pHandler->Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+	pHandler->Init.OwnAddress2 = 0;
+	pHandler->Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+	pHandler->Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+	if (HAL_I2C_Init(pHandler) != HAL_OK)
+	{
 	   Error_Handler();
-	 }
+	}
 }
 
-static void f_ina219_calibrate()
+static inline void f_ina219_calibrate()
 {
 	uint16_t calib = (uint16_t)INA219_CALIB_VALUE;
 
@@ -72,11 +76,13 @@ static void f_ina219_calibrate()
 
 //============== public functions ==================
 
-bool f_ina219_Init()
+bool f_ina219_Init(I2C_HandleTypeDef *pHandler, I2C_TypeDef *pI2Caddress)
 {
 	bool isOk = false;
 
-	f_ina219_HwInit();
+	if(pHandler == NULL) return false;
+	f_ina219_HwInit(pHandler, pI2Caddress);
+
 	//set the config register
 	// bus voltage range = 32v
 	// gain divide = 2
@@ -85,7 +91,7 @@ bool f_ina219_Init()
 	//mode = bus and shunt, continuous
 	uint16_t config = (1 << 13) | (1 << 11) | (15 << 7) | (15 << 3) | (7 << 0);
 
-	f_ina219_reset();
+	f_ina219_Reset();
 	HAL_Delay(1);
 	f_sendWord(INA219_CONFIG, config);
 
@@ -98,21 +104,21 @@ bool f_ina219_Init()
 	return isOk;
 }
 
-void f_ina219_reset()
+void f_ina219_Reset()
 {
 	uint16_t tempConfig = (1 << 15);
 
 	f_sendWord(INA219_CONFIG, tempConfig);
 }
 
-void f_ina219_Mode(uint8_t mode)
+void f_ina219_Mode(e_ina219_PowerMode Mode)
 {
 	uint16_t tempConfig;
 
 	tempConfig = f_receiveWord(INA219_CONFIG);
 
-	tempConfig = (tempConfig & 0xFFF8) | mode;
-	HAL_I2C_Master_Transmit(&hi2c1, INA219_I2C_ADDRESS, (uint8_t*)&tempConfig, 2, 50);
+	tempConfig = (tempConfig & 0xFFF8) | (uint8_t)Mode;
+	HAL_I2C_Master_Transmit(pI2Chandler, INA219_I2C_ADDRESS, (uint8_t*)&tempConfig, 2, 50);
 }
 
 int16_t f_ina219_GetCurrentInMilis()

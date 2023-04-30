@@ -10,14 +10,12 @@
 
 t_pid_Control* f_pid_calculateThrottle(float setPoint, float input, t_pid_Control* Ctrl, t_pid_Parameter* Param)
 {
-	float error;
-
-	error = setPoint - input;
+	float error = setPoint - input;
 
 	//get p value
 	Ctrl->pValue = error * Param->Kp;
 
-	//get i value (the fancy way)
+	//get i value (with little lowPass filter)
 	Ctrl->integral += (error + Ctrl->lastError)/2 * Param->Ki;
 
 	Ctrl->iValue = Ctrl->integral;

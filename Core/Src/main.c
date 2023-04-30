@@ -19,42 +19,34 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "dma.h"
+#include "iwdg.h"
 #include "tim.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
-#include "state_machine.h"
 #include "ina219.h"
 #include "lcd_service.h"
 
 #include "sh1106_hw.h"
-#include "work.h"
 #include "pid.h"
 #include "gui.h"
 #include "circ_buff.h"
+#include "runtime.h"
+#include "machine.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-typedef e_sm_ReturnCode (*f_sm_Handler)(void);
+typedef e_sm_State (*f_sm_Handler)(void);
 
 typedef struct
 {
-	e_sm_State srcState;
+	e_sm_State currentState;
 	e_sm_Event event;
-	e_sm_State dstState;
 }t_sm_Transition;
-
-struct
-{
-	bool counterEnableA;
-	bool counterEnableB;
-	uint32_t counterA;
-	uint32_t counterB;
-}Button;
 
 /* USER CODE END PTD */
 
@@ -76,11 +68,19 @@ struct
 
 /* USER CODE BEGIN PV */
 bool eventFlag;
+bool encoderInputChanged;
+uint32_t dwtCycles;
+
+struct
+{
+	bool counterEnableA;
+	bool counterEnableB;
+	uint32_t counterA;
+	uint32_t counterB;
+}Button;
 
 t_pid_Control PidCtrl;
 t_pid_Parameter PidParam;
-
-uint32_t dwtCycles;
 
 e_sm_State f_sm_Error();
 e_sm_State f_sm_Init();
@@ -89,7 +89,7 @@ e_sm_State f_sm_Work();
 e_sm_State f_sm_Replay();
 e_sm_State f_sm_Exit();
 
-t_sm_Transition SM;
+t_sm_Transition SM; //main State Machine Variable
 
 static const f_sm_Handler StateHandler[] = {f_sm_Error, f_sm_Init, f_sm_Idle, f_sm_Work, f_sm_Replay, f_sm_Exit};
 /* USER CODE END PV */
@@ -100,14 +100,17 @@ void SystemClock_Config(void);
 uint8_t f_dwt_counterEnable();
 static inline void f_dwt_addSample();
 
+static inline void f_sm_ClearEventFlag()
+{
+	eventFlag = false;
+	SM.event = EV_NO_EVENT;
+}
 
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-
 
 /* USER CODE END 0 */
 
@@ -141,8 +144,9 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_TIM3_Init();
+  MX_IWDG_Init();
   /* USER CODE BEGIN 2 */
-  SM.dstState = ST_INIT;
+  SM.currentState = ST_INIT;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -153,18 +157,15 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-	  SM.srcState = SM.dstState;
-	  if(StateHandler[SM.srcState] != NULL)
+	  if(StateHandler[SM.currentState] != NULL)
 	  {
-		  SM.dstState = (StateHandler[SM.srcState])();
+		  SM.currentState = (StateHandler[SM.currentState])();
 	  }
-	  else
+	  else// Invalid code
 	  {
-		  // Invalid code
 		  break;
 	  }
-
-
+	  HAL_IWDG_Refresh(&hiwdg);
 
   }
   /* USER CODE END 3 */
@@ -187,8 +188,9 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 8;
@@ -220,7 +222,7 @@ void SystemClock_Config(void)
 e_sm_State f_sm_Error()
 {
 	f_lcd_ClearAll();
-	f_gui_DrawHeading(SM.srcState, LCD_ERROR);
+	f_gui_DrawHeading(SM.currentState, LCD_ERROR);
 	f_lcd_WriteTxt(0, 32, "ERROR!", &font_msSansSerif_14);
 
 	while(1)
@@ -234,7 +236,7 @@ e_sm_State f_sm_Error()
 
 e_sm_State f_sm_Init()
 {
-	static const char *infoTxt[] =
+	static const char *const infoTxt[] =
 	{
 		"Init test",
 		"Test ok",
@@ -242,44 +244,18 @@ e_sm_State f_sm_Init()
 	};
 	e_sm_State nextState;
 	uint8_t isOkCounter = 0;
-	//TODO:: WATCHDOG ENABLE;
-	//enable all basic peripherals
-	f_lcd_Init();
-	f_work_MotorInitTimer();
-	f_work_SensorInitTimer();
-	f_ina219_Init();
-	//enable encoder timer
-	__HAL_TIM_SET_COUNTER(&htim3, 0);
-	//HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
-	HAL_TIM_IC_Start(&htim3, TIM_CHANNEL_1);
-	HAL_TIM_IC_Start(&htim3, TIM_CHANNEL_2);
 
+	isOkCounter += f_runtime_FirstInit();
 
 	f_lcd_ClearAll();
-	f_gui_DrawHeading(SM.dstState, LCD_NOPAGE);
+	f_gui_DrawHeading(SM.currentState, LCD_NOPAGE);
 	f_lcd_WriteTxt(0, 32, infoTxt[0], &font_msSansSerif_14);
 	HAL_Delay(500);
 
-	//check motor on idle
-	f_work_MotorSet(0);
-	isOkCounter += f_work_MotorTest(0);
-
-	//check motor on 50%
-	f_work_MotorSetVelocity(MAX_MOTOR_PWM/2);
-	f_work_MotorSet(1);
-	HAL_Delay(2000);
-	isOkCounter += f_work_MotorTest(1);
-	f_work_MotorSet(0);
-
-	//check is distance is not 0
-	f_work_sensorTriggerMeasure();
-	while(!sensorMeasureDone)
-		;
-	uint16_t distance = f_work_sensorGetLastMeasure();
-	if(distance > 0) isOkCounter++;
+	isOkCounter += f_runtime_FirstTest();
 
 	f_lcd_ClearAll();
-	if(isOkCounter == 3)
+	if(isOkCounter == 2)
 	{
 		f_lcd_WriteTxt(0, 32, infoTxt[1], &font_msSansSerif_14);
 		nextState = ST_IDLE;
@@ -294,38 +270,17 @@ e_sm_State f_sm_Init()
 	return nextState;
 }
 
-static uint16_t f_idle_GetEncoderInput()
-{
-	char txt[20];
-	uint16_t lastVal;
-	uint16_t *timerCounter = (uint16_t*)&htim3.Instance->CNT;
-	*timerCounter = 0;
-
-	while(!eventFlag)
-	{
-		if(lastVal != *timerCounter)
-		{
-			uint16_t tmpVal = *timerCounter/2;
-			sprintf(txt, "%2d.%02d", tmpVal/100, tmpVal%100);
-			f_lcd_Clear(0, 128, 6);
-			f_lcd_Clear(0, 128, 7);
-			f_lcd_WriteTxt(0, 48, txt, &font_msSansSerif_14);
-			lastVal = *timerCounter;
-		}
-	}
-	return *timerCounter/2;
-}
-
 e_sm_State f_sm_Idle()
 {
-	static enum {PREPARE, SET_P, SET_I, SET_D} Substate;
-	e_sm_State nextState;
-	static const char *infoTxt[] =
+	static enum {PROLOGUE, SET_P, SET_I, SET_D, EPILOGUE} Substate;
+	e_sm_State nextState = ST_IDLE;
+	static const char *const infoTxt[] =
 	{
-		"Set PID values:\0",
-		"Set P value:\0",
-		"Set I value:\0",
-		"Set D value:\0"
+		"Set PID values:",
+		"Set P value:",
+		"Set I value:",
+		"Set D value:",
+		"Press OK"
 	};
 
 	f_lcd_Clear(0, 128, 4);
@@ -333,137 +288,88 @@ e_sm_State f_sm_Idle()
 
 	switch (Substate)
 	{
-		case PREPARE:
-			f_lcd_ClearAll();
-			f_gui_DrawHeading(SM.srcState, LCD_INPUT);
+		case PROLOGUE:
+			f_gui_DrawHeading(SM.currentState, LCD_INPUT);
 			f_lcd_WriteTxt(0, 16, infoTxt[0], &font_msSansSerif_14);
 			Substate = SET_P;
 			SM.event = EV_NO_EVENT;
 			break;
 
-		case SET_P:
+		case SET_P: //could be optimized with SET_I and SET_D, left for better readability what's going on
 			f_lcd_WriteTxt(0, 32, infoTxt[1], &font_msSansSerif_14);
-			PidParam.Kp = (float)f_idle_GetEncoderInput()/100;
+			PidParam.Kp = f_runtime_GetParamInput(10);
 			break;
 
 		case SET_I:
 			f_lcd_WriteTxt(0, 32, infoTxt[2], &font_msSansSerif_14);
-			PidParam.Ki = (float)f_idle_GetEncoderInput()/100;
+			PidParam.Ki = f_runtime_GetParamInput(1);
 			break;
 
 		case SET_D:
 			f_lcd_WriteTxt(0, 32, infoTxt[3], &font_msSansSerif_14);
-			PidParam.Kd = (float)f_idle_GetEncoderInput()/100;
+			PidParam.Kd = f_runtime_GetParamInput(5);
+			break;
 
+		case EPILOGUE:
+			f_lcd_ClearAll();
+			f_gui_DrawHeading(SM.currentState, LCD_NOPAGE);
+			f_lcd_WriteTxt(0, 32, infoTxt[4], &font_msSansSerif_14);
+
+			while(!eventFlag)
+				;
+			f_sm_ClearEventFlag(); //if not, the EV_BUTTON_A would increase the substate to SET_P
 			PidParam.I_maxRange = 1000;
 			PidParam.I_minRange = -1000;
 			PidParam.maxRange = MAX_MOTOR_PWM/2;
 			PidParam.minRange = -(MAX_MOTOR_PWM/2);
 
+			Substate = PROLOGUE;
+			nextState = ST_WORK;
 			break;
 
 		default:
-			nextState = ST_ERROR;
 			break;
 	}
 
-	nextState = ST_IDLE;
-	eventFlag = false;
 	if(SM.event == EV_BUTTON_A) Substate++;
 	else if(SM.event == EV_BUTTON_B) Substate--;
 	else if(SM.event == EV_ERROR) nextState = ST_ERROR;
-	SM.event = EV_NO_EVENT;
-	if(Substate > SET_D)
-		{
-			nextState = ST_WORK;
-			Substate = PREPARE;
-		}
+	f_sm_ClearEventFlag();
 
 	return nextState;
 }
 
-static void f_work_drawPage(e_gui_lcdPage page, t_pid_Parameter *Param, uint16_t pwmOutput, uint16_t distanceSet, uint16_t distanceGet)
-{
-	static uint8_t chartData[120];
-	static uint8_t chartIterator, chartLength;
-
-	switch (page)
-	{
-		case LCD_PARAM:
-			f_gui_DrawParamPage(Param, &PidCtrl);
-			break;
-
-		case LCD_CTRL:
-			f_gui_DrawCtrlPage((float)distanceSet/10, (float)distanceGet/10, (float)pwmOutput/41);
-			break;
-
-		case LCD_CHART:
-			chartData[chartIterator] = (uint32_t)(pwmOutput*44)/4096; //max value is 44px
-			chartIterator = (chartIterator + 1) % 120;
-
-			if(chartLength < 120)
-			{
-				f_gui_DrawChartPage(chartData, chartLength, 0);
-				chartLength++;
-			}
-			else
-			{
-				f_gui_DrawChartPage(chartData, chartLength, chartIterator);
-			}
-
-			break;
-
-		default:
-			f_lcd_ClearAll();
-			break;
-	}
-}
-
 e_sm_State f_sm_Work()
 {
-	e_sm_State nextState;
+	e_sm_State nextState = ST_WORK;
 	static enum {PREPARE, WORK, POSTPARE, EXIT} Substate;
 	uint32_t timerLcdInput, timerLcdHeading, timerMotor, timerMotorTest;
+	//distanceSet is encoder counter address
 	uint16_t *distanceSet = (uint16_t*)&htim3.Instance->CNT;
-	uint16_t distanceGet, distanceLastSet;
-	bool isMotorPowerOk;
+	*distanceSet = (PINGPONG_MAX_DISTANCE-PINGPONG_MIN_DISTANCE)/2;
+	uint16_t distanceGet;
 	uint16_t motorPwm;
-	uint32_t motorPwmDelta;
-	static e_gui_lcdPage currentLcdPage = LCD_NOPAGE;
+	uint16_t motorPwmMean;//for calculating pwm stability
+	static e_gui_lcdPage currentLcdPage = LCD_PARAM;
 	bool changePage;
 
-	f_work_sensorTriggerMeasure();
-	*distanceSet = (PINGPONG_MAX_DISTANCE-PINGPONG_MIN_DISTANCE)/2;
-
+	f_machine_SensorTriggerMeasure();
 
 	switch (Substate)
 	{
 		case PREPARE:
-			isMotorPowerOk = f_work_MotorTest(0);
-			if(isMotorPowerOk)
-			{
-				f_lcd_ClearAll();
-				f_lcd_WriteTxt(0, 32, "Press OK", &font_msSansSerif_14);
-
-				while(1)
-				{
-					if(SM.event == EV_BUTTON_A) break;
-				}
-
-				currentLcdPage = LCD_PARAM;
-			}
-			else nextState = ST_ERROR;
-
+			if(!f_machine_MotorTestIfOk()) nextState = ST_ERROR;
 			break;
 
 		case WORK:
 			f_gui_DrawHeading(ST_WORK, currentLcdPage);
-			f_work_MotorSet(1);
+			f_machine_MotorSet(1);
 			timerLcdInput = timerMotor = timerLcdHeading = timerMotorTest = HAL_GetTick();
 
-			while(1)
+			while(1) //main work loop
 			{
-				if(((HAL_GetTick() - timerLcdInput) > 200) || (distanceLastSet != *distanceSet/2)) //if timer or input changed
+				// DISPLAY PAGE REFRESH
+				if((HAL_GetTick() - timerLcdInput) > 200) //if timer or input changed
 				{
 					if(changePage)
 					{
@@ -471,52 +377,45 @@ e_sm_State f_sm_Work()
 						if(currentLcdPage == LCD_NOPAGE) currentLcdPage = LCD_PARAM;
 						changePage = 0;
 					}
-					f_work_drawPage(currentLcdPage, &PidParam, motorPwm, *distanceSet, distanceGet);
-
-					if(*distanceSet > PINGPONG_MAX_DISTANCE) *distanceSet = PINGPONG_MAX_DISTANCE;
-					else if(*distanceSet < PINGPONG_MIN_DISTANCE) *distanceSet = PINGPONG_MIN_DISTANCE;
-					distanceLastSet = *distanceSet/2;
+					f_gui_DrawPage(currentLcdPage, &PidParam, &PidCtrl, motorPwm, *distanceSet, distanceGet);
 
 					timerLcdInput = HAL_GetTick();
 				}
 
+				// DISPLAY LCD HEADING
 				if(( HAL_GetTick() - timerLcdHeading) > 500)
 				{
-					f_gui_DrawHeading(SM.dstState, currentLcdPage);
+					f_gui_DrawHeading(SM.currentState, currentLcdPage);
 					timerLcdHeading = HAL_GetTick();
 				}
 
+				// REFRESH DISTANCE SET
+				if(encoderInputChanged) //if encoder input changed
+				{
+					if(*distanceSet > PINGPONG_MAX_DISTANCE) *distanceSet = PINGPONG_MAX_DISTANCE;
+					else if(*distanceSet < PINGPONG_MIN_DISTANCE) *distanceSet = PINGPONG_MIN_DISTANCE;
+					encoderInputChanged = false;
+
+					if(currentLcdPage == LCD_CTRL) f_gui_DrawPage(currentLcdPage, &PidParam, &PidCtrl, motorPwm, *distanceSet, distanceGet); //to prevent to big refresh latency
+				}
+
+				// MOTOR PWM SET
 				if((HAL_GetTick() - timerMotor) > 20)
 				{
-					uint16_t timeout = 20;
-					while(!sensorMeasureDone && timeout)
-					{
-						HAL_Delay(1);
-						timeout--;
-					}
-					distanceGet = f_work_sensorGetLastMeasure(); //in mm
+					motorPwm = f_runtime_WorkMotorHandler(&distanceGet, distanceSet, &motorPwm, &PidParam, &PidCtrl);
 
-					f_pid_calculateThrottle(*distanceSet, distanceGet, &PidCtrl, &PidParam);
-					//motorPwm -= (int16_t)PidCtrl.output; //error is opposite
-					motorPwm = MAX_MOTOR_PWM/2 - (int16_t)PidCtrl.output;
-					if(motorPwm > MAX_MOTOR_PWM) motorPwm = MAX_MOTOR_PWM;
-					else if(motorPwm < 0) motorPwm = 0;
-
-					f_work_MotorSetVelocity(motorPwm);
-					motorPwmDelta = (15*motorPwmDelta + motorPwm)/16;
-
-					f_work_sensorTriggerMeasure();
+					motorPwmMean = (15*motorPwmMean + motorPwm)/16;
 					timerMotor = HAL_GetTick();
 				}
 
-				if((HAL_GetTick() - timerMotorTest) > 500)
+				// MOTOR AND SENSOR TEST
+				if((HAL_GetTick() - timerMotorTest) > 200)
 				{
-					if(abs(motorPwmDelta - motorPwm) < (MAX_MOTOR_PWM/100)) // if motorPwm is stabilized
+					if(abs(motorPwmMean - motorPwm) < (MAX_MOTOR_PWM/100)) // if motorPwm is stabilized
 					{
-						isMotorPowerOk = f_work_MotorTest(1);
-						if((distanceGet == 0) || !isMotorPowerOk)
+						if((distanceGet == 0) || !f_machine_MotorTestIfOk())
 						{
-							f_work_MotorSet(0);
+							f_machine_MotorSet(0);
 							nextState = ST_ERROR;
 							break;
 						}
@@ -524,7 +423,9 @@ e_sm_State f_sm_Work()
 					timerMotorTest = HAL_GetTick();
 				}
 
-				if(eventFlag)
+				HAL_IWDG_Refresh(&hiwdg);
+
+				if(eventFlag) //check if anything happened
 				{
 					if(SM.event == EV_BUTTON_B)	break;
 					else if(SM.event == EV_BUTTON_A) changePage = 1;
@@ -536,20 +437,19 @@ e_sm_State f_sm_Work()
 					SM.event = EV_NO_EVENT;
 					eventFlag = 0;
 				}
-			}
+			} //end of main work loop
 			break;
 
 		case POSTPARE:
-			f_work_MotorSet(0);
+			f_machine_MotorSet(0);
 			break;
 
 		default:
 			break;
 	}
 
-	eventFlag = 0;
 	Substate++;
-	SM.event = EV_NO_EVENT;
+	f_sm_ClearEventFlag();
 	if(Substate == EXIT) nextState = ST_REPLAY;
 
 	return nextState;
@@ -560,17 +460,16 @@ e_sm_State f_sm_Replay()
 	e_sm_State nextState;
 
 	f_lcd_ClearAll();
-	f_gui_DrawHeading(SM.srcState, LCD_NOPAGE);
+	f_gui_DrawHeading(SM.currentState, LCD_NOPAGE);
 	f_lcd_WriteTxt(0, 32, "Replay?", &font_msSansSerif_14);
 
 	while(!eventFlag)
 		;
 
-	eventFlag = 0;
 	if(SM.event == EV_BUTTON_A)	nextState = ST_IDLE;
 	else if(SM.event == EV_BUTTON_B) nextState = ST_EXIT;
 	else if(SM.event == EV_ERROR) nextState = ST_ERROR;
-	SM.event = EV_NO_EVENT;
+	f_sm_ClearEventFlag();
 
 	return nextState;
 }
@@ -585,6 +484,8 @@ e_sm_State f_sm_Exit()
 
 	return ST_ERROR;
 }
+
+//================= NO STATE MACHINE FUNCTIONS ===============
 
 uint8_t f_dwt_counterEnable()
 {
@@ -650,21 +551,37 @@ void f_CheckButtonsCallback()
 	else Button.counterEnableB = false;
 }
 
+// =========== INTERRUPT CALLBACKS ===================
+
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	HAL_GPIO_TogglePin(LD4_GPIO_Port, LD4_Pin);
 
 	if((GPIO_Pin == B_NEXT_Pin) && HAL_GPIO_ReadPin(B_NEXT_GPIO_Port, B_NEXT_Pin))
 	{
 		Button.counterEnableA = true;
 		Button.counterA = HAL_GetTick();
-		HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_SET);
 	}
 	else if((GPIO_Pin == B_PREV_Pin) && HAL_GPIO_ReadPin(B_PREV_GPIO_Port, B_PREV_Pin))
 	{
 		Button.counterEnableB = true;
 		Button.counterB = HAL_GetTick();
 	}
+}
+
+void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	f_machine_SensorOutputCompareCallback(htim);
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	f_machine_SensorPeriodElapsedCallback(htim);
+}
+
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
+{
+	f_machine_SensorCaptureCallback(htim);
+	if(htim->Instance == TIM3) encoderInputChanged = true;
 }
 
 
