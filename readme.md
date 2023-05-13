@@ -31,12 +31,23 @@ Możesz wyciągnąć jakieś wnioski z parametrów i zachowania piłeczki, może
 
 #### 4. Wygląd zbudowanego układu:
 
-![Built system](blob/master/working_system_edit.jpg)
+![Electronic](assets/Electronic.jpg)
 
-#### 5. Schemat działania programu:
+![PingPong tube](assets/Machine.jpg)
 
-![App flow](blob/master/App_flow.png)
+#### 5. Działanie programu:
 
+![Lcd Parameters](assets/LCD_Chart.jpg)
+
+![Lcd Control values](assets/LCD_Ctrl.jpg)
+
+![Lcd Chart](assets/LCD_Chart.jpg)
+
+![Parameters to low](assets/PID_2_0_0.mp4)
+
+![Parameters to high](assets/PID_10_0,3_5.mp4)
+
+![Parameters good](assets/PID_7_0,03_2.mp4)
 
 <details>
 <summary>Kilka komentarzy</summary>
