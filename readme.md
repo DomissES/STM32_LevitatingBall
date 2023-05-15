@@ -37,17 +37,13 @@ Możesz wyciągnąć jakieś wnioski z parametrów i zachowania piłeczki, może
 
 #### 5. Działanie programu:
 
-![Lcd Parameters](assets/LCD_Chart.jpg)
+![Lcd Parameters](assets/LCD_Param.jpg)
 
 ![Lcd Control values](assets/LCD_Ctrl.jpg)
 
 ![Lcd Chart](assets/LCD_Chart.jpg)
 
-![Parameters to low](assets/PID_2_0_0.mp4)
-
-![Parameters to high](assets/PID_10_0,3_5.mp4)
-
-![Parameters good](assets/PID_7_0,03_2.mp4)
+W folderze assets znajdują się krótkie filmy, które pokazują jak układ działa przy różnych parametrach.
 
 <details>
 <summary>Kilka komentarzy</summary>
@@ -158,14 +154,15 @@ You can take some thoughts from set parameters or behaviour of the ball, you can
 - Implementation of a state machine
 - Implementation of a circular buffer
 
-#### 4. How the physical controller looks like:
+#### 4. How the built system looks like:
 
 Check Point 4. in PL section
 
-#### 5. Manual of the program:
+#### 5. How the system works:
 
 Check Point 5. in PL section
 
+In the assets folder there are short clips to visualize how the system works at different parameters.
 
 <details>
 <summary>Few comments</summary>
